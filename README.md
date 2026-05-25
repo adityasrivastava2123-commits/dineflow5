@@ -1,216 +1,273 @@
-# 🍽️ DineFlow — Restaurant OS
+# DineFlow Pro - Restaurant QR Ordering SaaS
 
-> A complete multi-tenant restaurant SaaS platform built with React, Node.js, MongoDB, Socket.io, Razorpay, and Cloudinary.
+## 🚀 Production-Ready QR Code Based Restaurant Ordering Platform
 
----
+DineFlow Pro is an enterprise-grade SaaS platform that revolutionizes restaurant table ordering through intelligent QR code scanning and real-time order management.
 
-## ✨ Features
+### ✨ Key Features
 
-- **QR Table Ordering** — Customers scan, browse, add to cart, pay
-- **Kitchen Display System** — Live order queue, sound alerts, timers, kanban board
-- **Multi-tenant Architecture** — One codebase, unlimited restaurants
-- **Real-time Updates** — Socket.io for live order status
-- **Razorpay Payments** — UPI, Cards, Net Banking
-- **Loyalty Points** — Earn 1pt/₹10, redeem at checkout
-- **WhatsApp Alerts** — via CallMeBot API (free)
-- **GST Invoice PDFs** — Professional, restaurant-branded
-- **Analytics Dashboard** — Revenue trends, heatmap, top dishes
-- **Progressive Web App** — Installable, offline-ready, push notifications
-- **Multi-language** — Hindi + English toggle
-- **Dark Mode** — Customer menu follows system preference
-- **Subscription Billing** — Self-service with Razorpay
+#### Customer Features
+- **QR Code Ordering**: Scan unique table QR codes to open personalized ordering interface
+- **Smart Menu Discovery**: Browse, search, and filter menu items with high-quality images
+- **Shopping Cart**: Add/remove items, manage quantities, and add special instructions
+- **Payment Gateway**: Razorpay integration with UPI, credit/debit card, and wallet support
+- **Order Tracking**: Real-time order status updates (Pending → Accepted → Preparing → Ready → Delivered)
+- **Order History**: Automatic customer recognition with personalized greeting
+- **Smart Recommendations**: AI-powered menu suggestions based on purchase patterns
+- **Invoice Management**: PDF generation and WhatsApp sharing
+- **Multi-Language Support**: English and Hindi with i18n
+- **Dark Mode**: Premium glassmorphism design
 
----
+#### Admin Dashboard
+- **Analytics Dashboard**: Revenue, top-selling items, peak hours, customer retention
+- **Order Management**: Live incoming orders with accept/reject functionality
+- **Menu Management**: CRUD operations with image upload and availability toggle
+- **Offer Management**: Coupon system and promotion engine
+- **Kitchen Display**: Real-time kitchen orders with priority highlighting
+- **Staff Management**: Role-based access control
+- **Restaurant Settings**: Multi-tenant configuration
 
-## 🚀 Quick Start
+#### Real-Time Features
+- **Socket.io Integration**: Instant notifications across customer, admin, and kitchen
+- **Live Kitchen Display**: Real-time order updates visible to kitchen staff
+- **Payment Status**: Immediate payment confirmation and failure notifications
 
-### Prerequisites
-- Node.js 18+
-- MongoDB (local or Atlas)
-- Razorpay account (test keys for dev)
-- Cloudinary account
-- CallMeBot WhatsApp API key (free)
+### 🏗️ Tech Stack
 
-### 1. Clone & Install
+**Frontend:**
+- React 18 + Vite
+- TailwindCSS + Framer Motion
+- React Router v6
+- Zustand for state management
+- React Query for server state
+- Socket.io-client for real-time
+- Recharts for analytics
+- Zod for validation
+- i18next for internationalization
 
-```bash
-git clone https://github.com/yourname/dineflow.git
-cd dineflow
+**Backend:**
+- Node.js + Express.js
+- Socket.io for real-time communication
+- MongoDB Atlas for database
+- Redis for caching
+- BullMQ for job queues
+- JWT for authentication
+- Razorpay for payments
+- Cloudinary for media storage
 
-# Server
-cd server && npm install
-cp .env.example .env  # fill in your values
+**DevOps:**
+- Docker & Docker Compose
+- GitHub Actions CI/CD
+- Nginx reverse proxy
+- Health check endpoints
+- Monitoring-ready setup
 
-# Client
-cd ../client && npm install
-cp .env.example .env  # fill in your values
-```
-
-### 2. Configure Environment
-
-**server/.env**
-```
-PORT=5000
-MONGODB_URI=mongodb://localhost:27017/dineflow
-JWT_SECRET=your_super_secret_jwt_key
-RAZORPAY_KEY_ID=rzp_test_xxxxx
-RAZORPAY_KEY_SECRET=your_secret
-CLOUDINARY_CLOUD_NAME=your_cloud
-CLOUDINARY_API_KEY=your_key
-CLOUDINARY_API_SECRET=your_secret
-CLIENT_URL=http://localhost:5173
-```
-
-**client/.env**
-```
-VITE_API_URL=http://localhost:5000/api
-VITE_SOCKET_URL=http://localhost:5000
-VITE_RAZORPAY_KEY_ID=rzp_test_xxxxx
-VITE_APP_URL=http://localhost:5173
-```
-
-### 3. Create SuperAdmin
-
-```bash
-# Run this once to create the superadmin account
-cd server
-node -e "
-const mongoose = require('mongoose');
-const User = require('./models/User');
-require('dotenv').config();
-mongoose.connect(process.env.MONGODB_URI).then(async () => {
-  await User.create({ name: 'Super Admin', email: 'super@dineflow.app', password: 'admin123', role: 'superadmin' });
-  console.log('SuperAdmin created: super@dineflow.app / admin123');
-  process.exit(0);
-});
-"
-```
-
-### 4. Run
-
-```bash
-# Terminal 1 - Backend
-cd server && npm run dev
-
-# Terminal 2 - Frontend
-cd client && npm run dev
-```
-
-Open http://localhost:5173
-
----
-
-## 🗂️ Project Structure
+### 📁 Project Structure
 
 ```
-dineflow/
-├── server/
-│   ├── models/          # Mongoose schemas
-│   ├── routes/          # Express API routes
-│   ├── middleware/       # Auth middleware
-│   ├── services/        # WhatsApp, etc.
-│   ├── index.js         # Entry point + Socket.io
-│   └── package.json
-├── client/
+dineflow-pro/
+├── server/                    # Backend Express.js application
 │   ├── src/
-│   │   ├── pages/
-│   │   │   ├── customer/    # Menu, Checkout, Tracking
-│   │   │   ├── admin/       # Full admin panel
-│   │   │   ├── kitchen/     # Kitchen Display System
-│   │   │   ├── superadmin/  # Super admin panel
-│   │   │   ├── mobile/      # PWA mobile apps
-│   │   │   └── landing/     # Marketing page
-│   │   ├── components/      # Reusable UI components
-│   │   ├── context/         # Auth, Cart, Socket contexts
-│   │   ├── services/        # API service layer
-│   │   └── App.jsx          # Routes
-│   ├── public/
-│   │   ├── manifest.json    # PWA manifest
-│   │   └── sw.js            # Service worker
-│   └── package.json
-├── render.yaml              # Render deployment
-└── vercel.json              # Vercel deployment
+│   │   ├── config/           # Configuration files
+│   │   ├── models/           # MongoDB models
+│   │   ├── controllers/      # Route controllers
+│   │   ├── middleware/       # Express middleware
+│   │   ├── routes/           # API routes
+│   │   ├── socket/           # Socket.io handlers
+│   │   ├── queues/           # BullMQ queue definitions
+│   │   ├── workers/          # Queue job workers
+│   │   ├── utils/            # Utility functions
+│   │   ├── constants/        # Constants
+│   │   ├── tests/            # Unit tests
+│   │   ├── app.js            # Express app setup
+│   │   └── index.js          # Server entry point
+│   ├── .env.example          # Environment template
+│   ├── .dockerignore         # Docker ignore
+│   ├── Dockerfile           # Production Docker image
+│   ├── docker-compose.yml   # Local development
+│   ├── package.json         # Dependencies
+│   └── .eslintrc.json       # Linting rules
+│
+├── client/                    # React frontend application
+│   ├── src/
+│   │   ├── pages/            # Route components
+│   │   ├── components/       # Reusable components
+│   │   ├── hooks/            # Custom React hooks
+│   │   ├── store/            # Zustand store
+│   │   ├── services/         # API & Socket services
+│   │   ├── context/          # React Context
+│   │   ├── utils/            # Utilities
+│   │   ├── constants/        # Constants
+│   │   ├── translations/     # i18n files
+│   │   ├── styles/           # Global styles
+│   │   ├── App.jsx           # Root component
+│   │   └── main.jsx          # Entry point
+│   ├── public/               # Static assets
+│   ├── .env.example          # Environment template
+│   ├── vite.config.js        # Vite configuration
+│   ├── tailwind.config.js    # TailwindCSS config
+│   ├── package.json          # Dependencies
+│   └── .eslintrc.json        # Linting rules
+│
+├── docker-compose.yml        # Full stack local development
+├── nginx.conf               # Nginx configuration
+├── .github/workflows/       # CI/CD pipelines
+├── docs/                    # Documentation
+└── DEPLOYMENT.md            # Deployment guide
 ```
 
+### 🚀 Quick Start
+
+#### Prerequisites
+- Node.js 18+
+- MongoDB Atlas account
+- Redis (local or cloud)
+- Razorpay account
+- Cloudinary account
+
+#### Local Development
+
+```bash
+# Clone repository
+git clone https://github.com/adityasrivastava2123-commits/dineflow5.git
+cd dineflow5
+
+# Start with Docker Compose (recommended)
+docker-compose up
+
+# Or manual setup
+# Backend
+cd server
+cp .env.example .env
+npm install
+npm run dev
+
+# Frontend (new terminal)
+cd client
+cp .env.example .env
+npm install
+npm run dev
+```
+
+Application will be available at:
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:3000
+- Admin Panel: http://localhost:5173/admin
+- Kitchen Display: http://localhost:5173/kitchen
+
+### 📚 Documentation
+
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for comprehensive deployment guides for:
+- MongoDB Atlas Setup
+- Redis Cloud Configuration
+- Razorpay Integration
+- Cloudinary Setup
+- Vercel Frontend Deployment
+- Render/Railway Backend Deployment
+
+### 🔒 Security Features
+
+- JWT-based authentication with refresh tokens
+- Role-Based Access Control (RBAC)
+- Helmet.js for HTTP security headers
+- Rate limiting on API endpoints
+- Input validation with Joi
+- CORS protection
+- XSS prevention
+- CSRF tokens
+- Tenant isolation in multi-tenant setup
+- Audit logging for sensitive operations
+- Environment variable protection
+
+### 📊 Architecture
+
+**Multi-Tenant SaaS Architecture:**
+- Isolated restaurant data per tenant
+- Shared infrastructure with separated contexts
+- Tenant middleware for automatic isolation
+- Redis caching per tenant
+
+**Real-Time Communication:**
+- Socket.io rooms for restaurant, admin, kitchen, and customer
+- Event-driven updates
+- Automatic reconnection handling
+
+**Queue System:**
+- Invoice generation queue
+- WhatsApp notification queue
+- Analytics processing queue
+- Email notification queue
+
+### 🔄 API Endpoints
+
+**Authentication**
+- `POST /api/auth/register` - User registration
+- `POST /api/auth/login` - User login
+- `POST /api/auth/refresh` - Refresh JWT token
+- `POST /api/auth/logout` - User logout
+
+**Menu Management**
+- `GET /api/menu` - Get all menu items
+- `POST /api/menu` - Create menu item (admin)
+- `PATCH /api/menu/:id` - Update menu item
+- `DELETE /api/menu/:id` - Delete menu item
+- `GET /api/menu/category/:category` - Get items by category
+
+**Orders**
+- `POST /api/orders` - Create order
+- `GET /api/orders` - Get user's orders
+- `GET /api/orders/admin/all` - Get all restaurant orders
+- `PATCH /api/orders/:id` - Update order status
+- `GET /api/orders/:id` - Get order details
+
+**Payments**
+- `POST /api/payments/create` - Create Razorpay order
+- `POST /api/payments/webhook` - Razorpay webhook handler
+- `GET /api/payments/:orderId` - Get payment status
+
+**Analytics**
+- `GET /api/analytics/dashboard` - Dashboard metrics
+- `GET /api/analytics/revenue` - Revenue data
+- `GET /api/analytics/top-items` - Top selling items
+- `GET /api/analytics/peak-hours` - Peak order times
+
+**Offers**
+- `GET /api/offers` - Get active offers
+- `POST /api/offers` - Create offer (admin)
+- `PATCH /api/offers/:id` - Update offer
+- `POST /api/offers/validate` - Validate coupon code
+
+### 🧪 Testing
+
+```bash
+# Backend tests
+cd server
+npm run test
+
+# Frontend tests
+cd client
+npm run test
+```
+
+### 📈 Monitoring
+
+- Health check endpoint: `GET /api/health`
+- Readiness probe: `GET /api/ready`
+- Liveness probe: `GET /api/live`
+- Performance metrics available on admin dashboard
+
+### 🤝 Contributing
+
+See CONTRIBUTING.md for guidelines.
+
+### 📄 License
+
+MIT License - See LICENSE.md
+
+### 📞 Support
+
+For issues and feature requests, please use GitHub Issues.
+
 ---
 
-## 🔗 Key Routes
-
-| URL | Description |
-|-----|-------------|
-| `/` | Landing page |
-| `/register` | Restaurant signup |
-| `/login` | Staff login |
-| `/restaurant/:slug?table=N` | Customer menu (QR link) |
-| `/r/:slug` | Public restaurant profile |
-| `/checkout` | Order checkout |
-| `/order/:id` | Live order tracking |
-| `/admin` | Admin dashboard |
-| `/admin/menu` | Menu management |
-| `/admin/orders` | Order management |
-| `/admin/analytics` | Sales analytics |
-| `/admin/subscription` | Plan & billing |
-| `/kitchen` | Kitchen Display System |
-| `/superadmin` | Super admin panel |
-| `/kitchen-app` | Mobile KDS (PWA) |
-| `/admin-app` | Mobile admin (PWA) |
-
----
-
-## 🚢 Deployment
-
-### Frontend → Vercel
-1. Connect GitHub repo to Vercel
-2. Set root directory to `client`
-3. Add environment variables
-4. Deploy
-
-### Backend → Render
-1. Connect GitHub repo to Render
-2. Set root directory to `server`
-3. Add environment variables
-4. Deploy
-
-### Database → MongoDB Atlas
-1. Create free cluster
-2. Get connection string
-3. Add to `MONGODB_URI`
-
----
-
-## 💳 Subscription Plans
-
-| Plan | Price | Features |
-|------|-------|----------|
-| Trial | Free/30 days | Basic features, 5 tables |
-| Basic | ₹999/mo | 20 tables, analytics, WhatsApp |
-| Standard | ₹1999/mo | Unlimited tables, KDS, inventory, loyalty |
-| Premium | ₹3999/mo | Multi-branch, GST reports, white label |
-
----
-
-## 📱 PWA Installation
-
-1. Open `/kitchen-app` on Android Chrome
-2. Tap "Add to Home Screen"
-3. Works offline, receives push notifications
-
----
-
-## 🧑‍🍳 Demo Credentials
-
-After running the seed script:
-- **SuperAdmin:** super@dineflow.app / admin123
-- Register a new restaurant at `/register` for admin access
-
----
-
-## 📞 WhatsApp Notifications Setup
-
-1. Send a WhatsApp to +34 644 59 72 48 saying: `I allow callmebot to send me messages`
-2. Get your API key from the reply
-3. Add to restaurant settings: WhatsApp Number + API Key
-
----
-
-Built with ❤️ for Indian restaurants | [DineFlow](https://dineflow.app)
+**Built with ❤️ for modern restaurants**
