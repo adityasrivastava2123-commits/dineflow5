@@ -16,10 +16,7 @@ const orderSchema = new mongoose.Schema(
       ref: "Restaurant",
       required: true,
     },
-    tableNumber: {
-      type: Number,
-      required: true,
-    },
+    tableNumber: Number,
     items: [
       {
         menuItem: {
@@ -40,9 +37,12 @@ const orderSchema = new mongoose.Schema(
     ],
     subtotal: Number,
     tax: Number,
-    discount: Number,
-    discountCode: String,
+    discount: {
+      type: Number,
+      default: 0,
+    },
     totalAmount: Number,
+    notes: String,
     status: {
       type: String,
       enum: ["pending", "accepted", "preparing", "ready", "delivered", "cancelled"],
@@ -50,36 +50,20 @@ const orderSchema = new mongoose.Schema(
     },
     paymentStatus: {
       type: String,
-      enum: ["pending", "paid", "failed", "refunded"],
+      enum: ["pending", "paid", "failed"],
       default: "pending",
     },
     payment: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Payment",
     },
-    estimatedTime: Number,
     startedAt: Date,
-    preparedAt: Date,
+    completedAt: Date,
     deliveredAt: Date,
-    cancelledAt: Date,
-    cancelReason: String,
-    rating: {
-      score: Number,
-      review: String,
-      ratedAt: Date,
-    },
-    notes: String,
-    isReplaceOrder: {
-      type: Boolean,
-      default: false,
-    },
-    originalOrderId: mongoose.Schema.Types.ObjectId,
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
-
-orderSchema.index({ restaurant: 1, createdAt: -1 });
-orderSchema.index({ customer: 1, createdAt: -1 });
-orderSchema.index({ status: 1, restaurant: 1 });
 
 export default mongoose.model("Order", orderSchema);

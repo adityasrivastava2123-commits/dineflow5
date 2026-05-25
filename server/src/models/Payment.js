@@ -6,7 +6,6 @@ const paymentSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Order",
       required: true,
-      unique: true,
     },
     amount: {
       type: Number,
@@ -16,36 +15,21 @@ const paymentSchema = new mongoose.Schema(
       type: String,
       default: "INR",
     },
-    paymentMethod: {
+    status: {
       type: String,
-      enum: ["upi", "card", "netbanking", "wallet", "cash"],
+      enum: ["pending", "paid", "failed"],
+      default: "pending",
     },
     razorpayOrderId: String,
     razorpayPaymentId: String,
     razorpaySignature: String,
-    status: {
-      type: String,
-      enum: ["pending", "paid", "failed", "refunded"],
-      default: "pending",
-    },
-    failureReason: String,
-    refundAmount: Number,
-    refundStatus: {
-      type: String,
-      enum: ["pending", "completed", "failed"],
-    },
-    refundReason: String,
-    notes: String,
-    metadata: mongoose.Schema.Types.Mixed,
-    processingFee: Number,
-    netAmount: Number,
+    paymentMethod: String,
     paidAt: Date,
-    refundedAt: Date,
+    failureReason: String,
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
-
-paymentSchema.index({ razorpayOrderId: 1 });
-paymentSchema.index({ order: 1 });
 
 export default mongoose.model("Payment", paymentSchema);

@@ -8,29 +8,20 @@ const offerSchema = new mongoose.Schema(
       unique: true,
       uppercase: true,
     },
-    description: String,
-    type: {
-      type: String,
-      enum: ["percentage", "fixed"],
+    restaurant: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Restaurant",
       required: true,
     },
+    description: String,
     discount: {
       type: Number,
       required: true,
     },
-    minimumOrderValue: {
-      type: Number,
-      default: 0,
-    },
-    maximumDiscount: Number,
-    usageLimit: Number,
-    usagePerUser: {
-      type: Number,
-      default: 1,
-    },
-    usedCount: {
-      type: Number,
-      default: 0,
+    type: {
+      type: String,
+      enum: ["percentage", "fixed"],
+      required: true,
     },
     validFrom: {
       type: Date,
@@ -40,27 +31,24 @@ const offerSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
-    applicableCategories: [String],
-    applicableMenuItems: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "MenuItem",
-    }],
-    restaurant: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Restaurant",
+    minimumOrderValue: {
+      type: Number,
+      default: 0,
+    },
+    maximumDiscount: Number,
+    usageLimit: Number,
+    usedCount: {
+      type: Number,
+      default: 0,
     },
     isActive: {
       type: Boolean,
       default: true,
     },
-    usedBy: [
-      {
-        userId: mongoose.Schema.Types.ObjectId,
-        usedAt: Date,
-      },
-    ],
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
 export default mongoose.model("Offer", offerSchema);

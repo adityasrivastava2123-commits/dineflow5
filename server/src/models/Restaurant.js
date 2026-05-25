@@ -4,14 +4,12 @@ const restaurantSchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      required: true,
-      trim: true,
+      required: [true, "Please provide restaurant name"],
+      unique: true,
     },
     slug: {
       type: String,
-      required: true,
       unique: true,
-      lowercase: true,
     },
     owner: {
       type: mongoose.Schema.Types.ObjectId,
@@ -25,24 +23,19 @@ const restaurantSchema = new mongoose.Schema(
       state: String,
       zipcode: String,
       country: String,
+      coordinates: {
+        latitude: Number,
+        longitude: Number,
+      },
     },
     phone: String,
     email: String,
-    logo: {
-      url: String,
-      publicId: String,
-    },
-    images: [
-      {
-        url: String,
-        publicId: String,
-      },
-    ],
+    website: String,
     tables: {
       type: Number,
-      required: true,
       default: 10,
     },
+    cuisineType: [String],
     openingHours: {
       monday: { open: String, close: String },
       tuesday: { open: String, close: String },
@@ -52,39 +45,39 @@ const restaurantSchema = new mongoose.Schema(
       saturday: { open: String, close: String },
       sunday: { open: String, close: String },
     },
-    cuisineType: [String],
     subscriptionPlan: {
       type: String,
-      enum: ["basic", "pro", "enterprise"],
-      default: "basic",
+      enum: ["free", "pro", "enterprise"],
+      default: "free",
     },
     subscriptionStatus: {
       type: String,
       enum: ["active", "inactive", "expired"],
       default: "active",
     },
+    subscriptionExpiry: Date,
     features: {
-      analytics: { type: Boolean, default: true },
-      advancedOffers: { type: Boolean, default: false },
-      kitchenDisplay: { type: Boolean, default: true },
-      multiLanguage: { type: Boolean, default: false },
-      whatsappIntegration: { type: Boolean, default: false },
+      analytics: Boolean,
+      advancedOffers: Boolean,
+      kitchenDisplay: Boolean,
+      multiLanguage: Boolean,
+      whatsappIntegration: Boolean,
     },
     settings: {
       currency: { type: String, default: "INR" },
       taxPercent: { type: Number, default: 5 },
-      deliveryCharges: Number,
-      minimumOrderValue: Number,
+      deliveryCharges: { type: Number, default: 0 },
+      minimumOrderValue: { type: Number, default: 0 },
+      autoAcceptOrders: { type: Boolean, default: false },
+      orderPreparationTime: { type: Number, default: 30 },
     },
-    isActive: {
-      type: Boolean,
-      default: true,
+    images: {
+      logo: String,
+      banner: String,
     },
     averageRating: {
       type: Number,
       default: 0,
-      min: 0,
-      max: 5,
     },
     totalOrders: {
       type: Number,
@@ -94,8 +87,26 @@ const restaurantSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
+
+// Auto-generate slug
+restaurantSchema.pre("save", function (next) {
+  if (!this.slug && this.name) {
+    this.slug = this.name
+      .toLowerCase()
+      .replace(/[^\w\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-");
+  }
+  next();
+});
 
 export default mongoose.model("Restaurant", restaurantSchema);

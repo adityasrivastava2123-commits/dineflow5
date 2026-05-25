@@ -1,48 +1,34 @@
 import Razorpay from "razorpay";
-import logger from "../utils/logger.js";
 import crypto from "crypto";
+import logger from "../utils/logger.js";
 
-let razorpayInstance = null;
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
+});
 
-export const initRazorpay = () => {
+export const createOrder = async (amount, currency, receiptId, notes) => {
   try {
-    if (razorpayInstance) {
-      return razorpayInstance;
-    }
-
-    const keyId = process.env.RAZORPAY_KEY_ID;
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
-
-    if (!keyId || !keySecret) {
-      throw new Error("Razorpay credentials not configured");
-    }
-
-    razorpayInstance = new Razorpay({
-      key_id: keyId,
-      key_secret: keySecret,
+    const order = await razorpay.orders.create({
+      amount: Math.round(amount * 100), // Convert to paise
+      currency,
+      receipt: receiptId,
+      notes,
     });
 
-    logger.info("Razorpay initialized successfully");
-    return razorpayInstance;
+    return order;
   } catch (error) {
-    logger.error("Razorpay initialization error:", error);
-    throw error;
+    logger.error("Razorpay order creation error:", error);
+    throw new Error("Failed to create payment order");
   }
-};
-
-export const getRazorpayInstance = () => {
-  if (!razorpayInstance) {
-    return initRazorpay();
-  }
-  return razorpayInstance;
 };
 
 export const verifyPaymentSignature = (orderId, paymentId, signature) => {
   try {
-    const body = `${orderId}|${paymentId}`;
+    const body = orderId + "|" + paymentId;
     const expectedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-      .update(body)
+      .update(body.toString())
       .digest("hex");
 
     return expectedSignature === signature;
@@ -52,18 +38,18 @@ export const verifyPaymentSignature = (orderId, paymentId, signature) => {
   }
 };
 
-export const createOrder = async (amount, currency = "INR", receipt, notes = {}) => {
+export const createTransfer = async (paymentId, amount, recipientId) => {
   try {
-    const razorpay = getRazorpayInstance();
-    const order = await razorpay.orders.create({
-      amount: amount * 100,
-      currency,
-      receipt,
-      notes,
+    const transfer = await razorpay.payments.transfer(paymentId, {
+      amount: Math.round(amount * 100),
+      recipient: recipientId,
     });
-    return order;
+
+    return transfer;
   } catch (error) {
-    logger.error("Error creating Razorpay order:", error);
-    throw error;
+    logger.error("Razorpay transfer error:", error);
+    throw new Error("Failed to process transfer");
   }
 };
+
+export default razorpay;
