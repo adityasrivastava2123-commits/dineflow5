@@ -1,7 +1,8 @@
 import User from "../models/User.js";
 import { generateToken, generateRefreshToken } from "../utils/tokenUtils.js";
+import { seedDemoRestaurant, seedDemoMenuItems } from "../config/demoData.js";
 import logger from "../utils/logger.js";
-
+import jwt from "jsonwebtoken";\n
 export const register = async (req, res) => {
   try {
     const { name, email, phone, password, restaurantName, role } = req.body;
@@ -182,6 +183,55 @@ export const updateProfile = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to update profile",
+    });
+  }
+};
+
+export const seedDemoData = async (req, res) => {
+  try {
+    // Only allow in development
+    if (process.env.NODE_ENV !== "development") {
+      return res.status(403).json({
+        success: false,
+        message: "This endpoint is only available in development mode",
+      });
+    }
+
+    const userId = req.user.id;
+
+    // Create demo restaurant
+    const restaurant = await seedDemoRestaurant(userId);
+
+    // Seed demo menu items
+    const menuItems = await seedDemoMenuItems(restaurant._id);
+
+    res.status(201).json({
+      success: true,
+      message: "Demo data seeded successfully",
+      data: {
+        restaurant: {
+          id: restaurant._id,
+          name: restaurant.name,
+          slug: restaurant.slug,
+          tables: restaurant.tables,
+          totalOrders: restaurant.totalOrders,
+        },
+        menuItemsCount: menuItems.length,
+        menuItemsByCategory: {\n          appetizers: menuItems.filter((i) => i.category === "Appetizers").length,
+          mainCourse: menuItems.filter((i) => i.category === "Main Course").length,
+          breads: menuItems.filter((i) => i.category === "Breads").length,
+          riceDishes: menuItems.filter((i) => i.category === "Rice Dishes").length,
+          beverages: menuItems.filter((i) => i.category === "Beverages").length,
+          desserts: menuItems.filter((i) => i.category === "Desserts").length,
+        },
+      },
+    });
+  } catch (error) {
+    logger.error("Seed demo data error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to seed demo data",
+      error: error.message,
     });
   }
 };
