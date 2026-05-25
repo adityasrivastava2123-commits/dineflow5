@@ -1,14 +1,13 @@
 import Payment from "../models/Payment.js";
 import Order from "../models/Order.js";
-import { createOrder as createRazorpayOrder, verifyPaymentSignature } from "../config/razorpay.js";
 import logger from "../utils/logger.js";
-import { io } from "../app.js";
+import { createOrder, verifyPaymentSignature } from "../config/razorpay.js";
 
 export const createPayment = async (req, res) => {
   try {
-    const { orderId } = req.body;
-    const customerId = req.user.id;
+    const { orderId, amount } = req.body;
 
+    // Verify order exists
     const order = await Order.findById(orderId);
     if (!order) {
       return res.status(404).json({
@@ -17,30 +16,23 @@ export const createPayment = async (req, res) => {
       });
     }
 
-    if (order.customer.toString() !== customerId) {
-      return res.status(403).json({
-        success: false,
-        message: "Unauthorized",
-      });
-    }
-
-    const razorpayOrder = await createRazorpayOrder(
+    // Create Razorpay order
+    const razorpayOrder = await createOrder(
       order.totalAmount,
       "INR",
       orderId,
       {
-        orderId: order._id,
-        customerId,
-        tableNumber: order.tableNumber,
+        orderId: order.orderNumber,
+        customerId: order.customer.toString(),
       }
     );
 
+    // Create payment record
     const payment = new Payment({
       order: orderId,
       amount: order.totalAmount,
       razorpayOrderId: razorpayOrder.id,
       status: "pending",
-      currency: "INR",
     });
 
     await payment.save();
@@ -48,12 +40,8 @@ export const createPayment = async (req, res) => {
     res.status(201).json({
       success: true,
       data: {
-        payment: {
-          id: payment._id,
-          razorpayOrderId: razorpayOrder.id,
-          amount: order.totalAmount,
-          currency: "INR",
-        },
+        razorpayOrder,
+        payment,
       },
     });
   } catch (error) {
@@ -67,53 +55,52 @@ export const createPayment = async (req, res) => {
 
 export const verifyPayment = async (req, res) => {
   try {
-    const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
+    const { orderId, paymentId, signature } = req.body;
 
-    const isValid = verifyPaymentSignature(razorpayOrderId, razorpayPaymentId, razorpaySignature);
-
+    // Verify signature
+    const isValid = verifyPaymentSignature(orderId, paymentId, signature);
     if (!isValid) {
       return res.status(400).json({
         success: false,
-        message: "Payment signature verification failed",
+        message: "Invalid payment signature",
       });
     }
 
-    const payment = await Payment.findOne({ razorpayOrderId });
+    // Update payment
+    const payment = await Payment.findOne({ razorpayOrderId: orderId });
     if (!payment) {
       return res.status(404).json({
         success: false,
-        message: "Payment record not found",
+        message: "Payment not found",
       });
     }
 
     payment.status = "paid";
-    payment.razorpayPaymentId = razorpayPaymentId;
-    payment.razorpaySignature = razorpaySignature;
+    payment.razorpayPaymentId = paymentId;
+    payment.razorpaySignature = signature;
     payment.paidAt = new Date();
     await payment.save();
 
-    const order = await Order.findById(payment.order);
-    order.paymentStatus = "paid";
-    order.payment = payment._id;
-    order.status = "accepted";
-    await order.save();
-
-    const restaurantId = order.restaurant.toString();
-    io.to(`restaurant-${restaurantId}`).emit("payment-done", {
-      orderId: order._id,
-      paymentId: payment._id,
-    });
+    // Update order
+    const order = await Order.findByIdAndUpdate(
+      payment.order,
+      {
+        paymentStatus: "paid",
+        payment: payment._id,
+      },
+      { new: true }
+    );
 
     res.status(200).json({
       success: true,
       message: "Payment verified successfully",
-      data: { orderId: payment.order },
+      data: { payment, order },
     });
   } catch (error) {
     logger.error("Verify payment error:", error);
     res.status(500).json({
       success: false,
-      message: "Payment verification failed",
+      message: "Failed to verify payment",
     });
   }
 };
@@ -122,29 +109,33 @@ export const handleWebhook = async (req, res) => {
   try {
     const { event, payload } = req.body;
 
-    if (event === "payment.authorized" || event === "payment.captured") {
-      const payment = await Payment.findOne({
-        razorpayPaymentId: payload.payment.entity.id,
-      });
-
-      if (payment) {
-        payment.status = "paid";
-        payment.paidAt = new Date();
-        await payment.save();
-
-        const order = await Order.findById(payment.order);
-        order.paymentStatus = "paid";
-        order.status = "accepted";
-        await order.save();
-      }
+    switch (event) {
+      case "payment.authorized":
+        logger.info("Payment authorized", payload);
+        break;
+      case "payment.failed":
+        const failedPayment = await Payment.findOne({
+          razorpayPaymentId: payload.payment.id,
+        });
+        if (failedPayment) {
+          failedPayment.status = "failed";
+          failedPayment.failureReason = payload.payment.error_reason;
+          await failedPayment.save();
+        }
+        break;
+      default:
+        logger.info("Unknown webhook event", event);
     }
 
-    res.status(200).json({ success: true });
+    res.status(200).json({
+      success: true,
+      message: "Webhook processed",
+    });
   } catch (error) {
-    logger.error("Webhook handling error:", error);
+    logger.error("Webhook error:", error);
     res.status(500).json({
       success: false,
-      message: "Webhook handling failed",
+      message: "Webhook processing failed",
     });
   }
 };

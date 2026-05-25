@@ -1,46 +1,25 @@
 import MenuItem from "../models/MenuItem.js";
-import { getCache, setCache, deleteCache, invalidatePattern } from "../config/redis.js";
-import { uploadToCloudinary, deleteFromCloudinary } from "../config/cloudinary.js";
 import logger from "../utils/logger.js";
-
-const CACHE_KEY_PREFIX = "menu:";
+import { uploadToCloudinary, deleteFromCloudinary } from "../config/cloudinary.js";
+import { getCache, setCache, invalidatePattern } from "../config/redis.js";
 
 export const getMenu = async (req, res) => {
   try {
-    const { category, search } = req.query;
-    const restaurantId = req.headers["x-restaurant-id"] || req.query.restaurant;
+    const restaurantId = req.query.restaurantId || req.headers["x-restaurant-id"];
+    const cacheKey = `menu-${restaurantId}`;
 
-    const cacheKey = `${CACHE_KEY_PREFIX}${restaurantId}:${category || "all"}:${search || "none"}`;
-    const cachedMenu = await getCache(cacheKey);
+    // Try to get from cache
+    let menu = await getCache(cacheKey);
 
-    if (cachedMenu) {
-      return res.status(200).json({
-        success: true,
-        data: { items: cachedMenu },
-        fromCache: true,
-      });
+    if (!menu) {
+      menu = await MenuItem.find({ restaurant: restaurantId, available: true }).sort({ category: 1 });
+      // Cache for 1 hour
+      await setCache(cacheKey, menu, 3600);
     }
-
-    let query = { restaurant: restaurantId, available: true };
-
-    if (category) {
-      query.category = category;
-    }
-
-    if (search) {
-      query.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { description: { $regex: search, $options: "i" } },
-      ];
-    }
-
-    const items = await MenuItem.find(query).sort({ isPopular: -1, rating: -1 });
-
-    await setCache(cacheKey, items, 3600);
 
     res.status(200).json({
       success: true,
-      data: { items },
+      data: { items: menu },
     });
   } catch (error) {
     logger.error("Get menu error:", error);
@@ -53,16 +32,13 @@ export const getMenu = async (req, res) => {
 
 export const getMenuCategories = async (req, res) => {
   try {
-    const restaurantId = req.headers["x-restaurant-id"] || req.query.restaurant;
+    const restaurantId = req.headers["x-restaurant-id"];
 
-    const categories = await MenuItem.distinct("category", {
-      restaurant: restaurantId,
-      available: true,
-    });
+    const categories = await MenuItem.distinct("category", { restaurant: restaurantId, available: true });
 
     res.status(200).json({
       success: true,
-      data: { categories: categories.sort() },
+      data: { categories },
     });
   } catch (error) {
     logger.error("Get categories error:", error);
@@ -75,33 +51,24 @@ export const getMenuCategories = async (req, res) => {
 
 export const createMenuItem = async (req, res) => {
   try {
-    const { name, price, category, description, vegetarian, spicyLevel, preparationTime, addons } = req.body;
     const restaurantId = req.headers["x-restaurant-id"];
+    const itemData = req.body;
 
-    let imageData = {};
+    // Upload image if provided
     if (req.file) {
-      const cloudinaryResult = await uploadToCloudinary(req.file, `dineflow/menu/${restaurantId}`);
-      imageData = {
-        url: cloudinaryResult.url,
-        publicId: cloudinaryResult.publicId,
-      };
+      const uploadResult = await uploadToCloudinary(req.file, `dineflow/menu/${restaurantId}`);
+      itemData.image = uploadResult;
     }
 
     const menuItem = new MenuItem({
-      name,
-      price,
-      category,
-      description,
-      vegetarian,
-      spicyLevel,
-      preparationTime,
-      addons,
-      image: imageData,
+      ...itemData,
       restaurant: restaurantId,
     });
 
     await menuItem.save();
-    await invalidatePattern(`${CACHE_KEY_PREFIX}${restaurantId}:*`);
+
+    // Invalidate cache
+    await invalidatePattern(`menu-${restaurantId}`);
 
     res.status(201).json({
       success: true,
@@ -120,39 +87,29 @@ export const createMenuItem = async (req, res) => {
 export const updateMenuItem = async (req, res) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
     const restaurantId = req.headers["x-restaurant-id"];
+    const updateData = req.body;
 
-    const menuItem = await MenuItem.findById(id);
-    if (!menuItem) {
-      return res.status(404).json({
-        success: false,
-        message: "Menu item not found",
-      });
-    }
-
+    // Handle image upload
     if (req.file) {
-      if (menuItem.image?.publicId) {
-        await deleteFromCloudinary(menuItem.image.publicId);
+      const existingItem = await MenuItem.findById(id);
+      if (existingItem?.image?.publicId) {
+        await deleteFromCloudinary(existingItem.image.publicId);
       }
-      const cloudinaryResult = await uploadToCloudinary(req.file, `dineflow/menu/${restaurantId}`);
-      updateData.image = {
-        url: cloudinaryResult.url,
-        publicId: cloudinaryResult.publicId,
-      };
+
+      const uploadResult = await uploadToCloudinary(req.file, `dineflow/menu/${restaurantId}`);
+      updateData.image = uploadResult;
     }
 
-    const updatedItem = await MenuItem.findByIdAndUpdate(id, updateData, {
-      new: true,
-      runValidators: true,
-    });
+    const menuItem = await MenuItem.findByIdAndUpdate(id, updateData, { new: true });
 
-    await invalidatePattern(`${CACHE_KEY_PREFIX}${restaurantId}:*`);
+    // Invalidate cache
+    await invalidatePattern(`menu-${restaurantId}`);
 
     res.status(200).json({
       success: true,
       message: "Menu item updated successfully",
-      data: { item: updatedItem },
+      data: { item: menuItem },
     });
   } catch (error) {
     logger.error("Update menu item error:", error);
@@ -168,20 +125,15 @@ export const deleteMenuItem = async (req, res) => {
     const { id } = req.params;
     const restaurantId = req.headers["x-restaurant-id"];
 
-    const menuItem = await MenuItem.findById(id);
-    if (!menuItem) {
-      return res.status(404).json({
-        success: false,
-        message: "Menu item not found",
-      });
-    }
-
-    if (menuItem.image?.publicId) {
-      await deleteFromCloudinary(menuItem.image.publicId);
+    const item = await MenuItem.findById(id);
+    if (item?.image?.publicId) {
+      await deleteFromCloudinary(item.image.publicId);
     }
 
     await MenuItem.findByIdAndDelete(id);
-    await invalidatePattern(`${CACHE_KEY_PREFIX}${restaurantId}:*`);
+
+    // Invalidate cache
+    await invalidatePattern(`menu-${restaurantId}`);
 
     res.status(200).json({
       success: true,
@@ -199,27 +151,25 @@ export const deleteMenuItem = async (req, res) => {
 export const toggleMenuItemAvailability = async (req, res) => {
   try {
     const { id } = req.params;
-    const { available } = req.body;
     const restaurantId = req.headers["x-restaurant-id"];
 
-    const menuItem = await MenuItem.findByIdAndUpdate(
-      id,
-      { available },
-      { new: true }
-    );
+    const item = await MenuItem.findById(id);
+    item.available = !item.available;
+    await item.save();
 
-    await invalidatePattern(`${CACHE_KEY_PREFIX}${restaurantId}:*`);
+    // Invalidate cache
+    await invalidatePattern(`menu-${restaurantId}`);
 
     res.status(200).json({
       success: true,
-      message: "Menu item availability updated",
-      data: { item: menuItem },
+      message: `Item ${item.available ? "enabled" : "disabled"}`,
+      data: { item },
     });
   } catch (error) {
     logger.error("Toggle availability error:", error);
     res.status(500).json({
       success: false,
-      message: "Failed to update availability",
+      message: "Failed to toggle availability",
     });
   }
 };
